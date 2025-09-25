@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    
+    <!-- Фон -->
+    <path
+        android:fillColor="#E3F2FD"
+        android:pathData="M0,0h200v200h-200z"/>
+    
+    <!-- Круглая рамка -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M100,10c49.7,0 90,40.3 90,90s-40.3,90 -90,90s-90,-40.3 -90,-90s40.3,-90 90,-90z"/>
+    
+    <!-- Внутренний круг -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M100,20c44.2,0 80,35.8 80,80s-35.8,80 -80,80s-80,-35.8 -80,-80s35.8,-80 80,-80z"/>
+    
+    <!-- Иконка камеры -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M100,60c-11,0 -20,9 -20,20s9,20 20,20s20,-9 20,-20s-9,-20 -20,-20zM100,70c5.5,0 10,4.5 10,10s-4.5,10 -10,10s-10,-4.5 -10,-10s4.5,-10 10,-10z"/>
+    
+    <!-- Текст "K" -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M95,45h10v10h-10zM95,55h10v10h-10zM95,65h10v10h-10z"/>
+    
+    <!-- Текст "Добавить фото" -->
+    <path
+        android:fillColor="#666666"
+        android:pathData="M70,120h60v5h-60zM70,130h60v5h-60zM70,140h60v5h-60z"/>
+</vector>
