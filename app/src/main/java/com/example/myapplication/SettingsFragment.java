@@ -1,5 +1,7 @@
 package com.example.myapplication;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -33,16 +35,16 @@ public class SettingsFragment extends Fragment {
         seekBarRoundDuration = view.findViewById(R.id.seekBarRoundDuration);
         textRoundDurationValue = view.findViewById(R.id.textRoundDurationValue);
 
-        // Настройка SeekBar для скорости игры
+
         setupSeekBar(seekBarSpeed, textSpeedValue, 1, 10, "x");
         
-        // Настройка SeekBar для количества тараканов
+
         setupSeekBar(seekBarCockroaches, textCockroachesValue, 5, 50, "");
         
-        // Настройка SeekBar для интервала бонусов
+
         setupSeekBar(seekBarBonusInterval, textBonusIntervalValue, 5, 60, " сек");
         
-        // Настройка SeekBar для длительности раунда
+
         setupSeekBar(seekBarRoundDuration, textRoundDurationValue, 30, 300, " сек");
 
         return view;
@@ -50,13 +52,17 @@ public class SettingsFragment extends Fragment {
 
     private void setupSeekBar(SeekBar seekBar, TextView textView, int min, int max, String suffix) {
         seekBar.setMax(max - min);
-        textView.setText(min + suffix);
+        SharedPreferences prefs = requireContext().getSharedPreferences("game_prefs", Context.MODE_PRIVATE);
+        int current = prefs.getInt(keyFor(textView.getId()), min);
+        seekBar.setProgress(current - min);
+        textView.setText(current + suffix);
         
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 int value = progress + min;
                 textView.setText(value + suffix);
+                prefs.edit().putInt(keyFor(textView.getId()), value).apply();
             }
             
             @Override
@@ -65,5 +71,13 @@ public class SettingsFragment extends Fragment {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {}
         });
+    }
+
+    private String keyFor(int id) {
+        if (id == R.id.textSpeedValue) return "speedMultiplier";
+        if (id == R.id.textCockroachesValue) return "maxBugs";
+        if (id == R.id.textBonusIntervalValue) return "bonusIntervalSec";
+        if (id == R.id.textRoundDurationValue) return "roundDurationSec";
+        return "unknown";
     }
 }

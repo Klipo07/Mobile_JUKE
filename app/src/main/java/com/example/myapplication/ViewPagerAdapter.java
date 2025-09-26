@@ -16,20 +16,22 @@ public class ViewPagerAdapter extends FragmentStateAdapter {
     public Fragment createFragment(int position) {
         switch (position) {
             case 0:
-                return new RegistrationFragment();
+                return new GameFragment();
             case 1:
-                return new RulesFragment();
+                return new RegistrationFragment();
             case 2:
-                return new AuthorsFragment();
+                return new RulesFragment();
             case 3:
+                return new AuthorsFragment();
+            case 4:
                 return new SettingsFragment();
             default:
-                return new RegistrationFragment();
+                return new GameFragment();
         }
     }
 
     @Override
     public int getItemCount() {
-        return 4;
+        return 5;
     }
 }

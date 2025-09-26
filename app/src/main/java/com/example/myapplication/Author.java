@@ -3,7 +3,7 @@ package com.example.myapplication;
 public class Author {
     public String name;
     public int photoResId;
-    public String photoPath; // Путь к файлу изображения
+    public String photoPath;
 
     public Author(String name, int photoResId) {
         this.name = name;

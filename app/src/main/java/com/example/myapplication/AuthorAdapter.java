@@ -52,9 +52,9 @@ public class AuthorAdapter extends BaseAdapter {
 
         Author author = authors.get(position);
         
-        // Загружаем изображение
+
         if (author.photoPath != null && !author.photoPath.isEmpty()) {
-            // Пытаемся загрузить изображение из файла
+
             File imageFile = new File(author.photoPath);
             if (imageFile.exists()) {
                 Bitmap bitmap = BitmapFactory.decodeFile(author.photoPath);

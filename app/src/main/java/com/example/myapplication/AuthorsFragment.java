@@ -17,12 +17,11 @@ public class AuthorsFragment extends Fragment {
         
         ListView listView = view.findViewById(R.id.listViewAuthors);
         
-        // Создаем список авторов
+
         List<Author> authors = new ArrayList<>();
-        // Огарков Кирилл Алексеевич - единственный автор с реальной фотографией
         authors.add(new Author("Огарков Кирилл Алексеевич", R.drawable.author1));
         
-        // Создаем адаптер
+
         AuthorAdapter adapter = new AuthorAdapter(getContext(), authors);
         listView.setAdapter(adapter);
         

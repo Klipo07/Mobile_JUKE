@@ -27,15 +27,18 @@ public class MainActivity extends AppCompatActivity {
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             switch (position) {
                 case 0:
-                    tab.setText("Регистрация");
+                    tab.setText("Игра");
                     break;
                 case 1:
-                    tab.setText("Правила");
+                    tab.setText("Регистрация");
                     break;
                 case 2:
-                    tab.setText("Авторы");
+                    tab.setText("Правила");
                     break;
                 case 3:
+                    tab.setText("Авторы");
+                    break;
+                case 4:
                     tab.setText("Настройки");
                     break;
             }
