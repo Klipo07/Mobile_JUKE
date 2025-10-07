@@ -87,6 +87,8 @@ public class GameView extends View {
         invalidate();
     }
 
+    public int getScore() { return score; }
+
     @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         widthPx = w; heightPx = h;

@@ -94,6 +94,28 @@ public class RegistrationFragment extends Fragment {
                     "Знак зодиака: " + player.zodiac;
 
             textViewResult.setText(result);
+
+            // сохраняем сложность и регистрируем/выбираем пользователя для игры
+            requireContext().getSharedPreferences("game_prefs", android.content.Context.MODE_PRIVATE)
+                    .edit()
+                    .putInt("difficulty", difficulty)
+                    .apply();
+
+            // создаем пользователя в БД, если отсутствует, и выбираем его активным
+            new Thread(() -> {
+                com.example.myapplication.db.AppDao dao = com.example.myapplication.db.AppDatabase.get(requireContext()).dao();
+                com.example.myapplication.db.UserEntity existing = dao.getUserByName(fio);
+                long userId;
+                if (existing == null) {
+                    com.example.myapplication.db.UserEntity u = new com.example.myapplication.db.UserEntity();
+                    u.name = fio.isEmpty() ? "Игрок" : fio;
+                    userId = dao.insertUser(u);
+                } else {
+                    userId = existing.id;
+                }
+                long finalUserId = userId;
+                requireActivity().runOnUiThread(() -> UserManager.setCurrentUser(requireContext(), finalUserId, fio));
+            }).start();
         });
 
         return view;
