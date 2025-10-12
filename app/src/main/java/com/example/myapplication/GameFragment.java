@@ -19,6 +19,7 @@ public class GameFragment extends Fragment {
     private TextView textTimer;
     private Button buttonStart;
     private Button buttonPause;
+    private Button buttonBack;
 
     private int roundDurationSec = 60;
     private int remainingSec = 60;
@@ -34,6 +35,7 @@ public class GameFragment extends Fragment {
         textTimer = view.findViewById(R.id.textTimer);
         buttonStart = view.findViewById(R.id.buttonStart);
         buttonPause = view.findViewById(R.id.buttonPause);
+        buttonBack = view.findViewById(R.id.buttonBack);
         gameView = view.findViewById(R.id.gameView);
 
         applySettingsToGameView();
@@ -42,6 +44,11 @@ public class GameFragment extends Fragment {
 
         buttonStart.setOnClickListener(v -> startGame());
         buttonPause.setOnClickListener(v -> pauseGame());
+        buttonBack.setOnClickListener(v -> {
+            if (getActivity() != null) {
+                getActivity().onBackPressed();
+            }
+        });
 
         return view;
     }

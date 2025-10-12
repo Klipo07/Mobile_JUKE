@@ -17,6 +17,7 @@ public class RegistrationFragment extends Fragment {
     private DatePicker datePicker;
     private ImageView imageViewZodiac;
     private Button buttonSubmit;
+    private Button buttonBack;
     private TextView textViewResult;
 
     private String selectedGender = "";
@@ -35,13 +36,30 @@ public class RegistrationFragment extends Fragment {
         datePicker = view.findViewById(R.id.datePicker);
         imageViewZodiac = view.findViewById(R.id.imageViewZodiac);
         buttonSubmit = view.findViewById(R.id.buttonSubmit);
+        buttonBack = view.findViewById(R.id.buttonBack);
         textViewResult = view.findViewById(R.id.textViewResult);
 
         // Настройка спиннера
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
                 getContext(),
                 android.R.layout.simple_spinner_item,
-                new String[]{"1 курс", "2 курс", "3 курс", "4 курс"});
+                new String[]{"1 курс", "2 курс", "3 курс", "4 курс"}) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view.findViewById(android.R.id.text1);
+                textView.setTextColor(getContext().getResources().getColor(android.R.color.white));
+                return view;
+            }
+            
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                TextView textView = (TextView) view.findViewById(android.R.id.text1);
+                textView.setTextColor(getContext().getResources().getColor(android.R.color.black));
+                return view;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCourse.setAdapter(adapter);
 
@@ -75,8 +93,16 @@ public class RegistrationFragment extends Fragment {
             zodiacSign = getZodiacSign(d, monthSelected);
             setZodiacImage(zodiacSign);
         });
+        
+        // Установка белого цвета текста для DatePicker
+        setDatePickerTextColor(datePicker);
 
-        // Настройка кнопки
+        // Настройка кнопок
+        buttonBack.setOnClickListener(v -> {
+            if (getActivity() != null) {
+                getActivity().onBackPressed();
+            }
+        });
         buttonSubmit.setOnClickListener(v -> {
             String fio = editTextName.getText().toString().trim();
             String course = spinnerCourse.getSelectedItem().toString();
@@ -95,13 +121,13 @@ public class RegistrationFragment extends Fragment {
 
             textViewResult.setText(result);
 
-            // сохраняем сложность и регистрируем/выбираем пользователя для игры
+
             requireContext().getSharedPreferences("game_prefs", android.content.Context.MODE_PRIVATE)
                     .edit()
                     .putInt("difficulty", difficulty)
                     .apply();
 
-            // создаем пользователя в БД, если отсутствует, и выбираем его активным
+
             new Thread(() -> {
                 com.example.myapplication.db.AppDao dao = com.example.myapplication.db.AppDatabase.get(requireContext()).dao();
                 com.example.myapplication.db.UserEntity existing = dao.getUserByName(fio);
@@ -153,5 +179,20 @@ public class RegistrationFragment extends Fragment {
             case "Рыбы": resId = R.drawable.pisces; break;
         }
         imageViewZodiac.setImageResource(resId);
+    }
+    
+    private void setDatePickerTextColor(DatePicker datePicker) {
+        // Установка белого цвета текста для всех дочерних элементов DatePicker
+        for (int i = 0; i < ((ViewGroup) datePicker).getChildCount(); i++) {
+            View child = ((ViewGroup) datePicker).getChildAt(i);
+            if (child instanceof ViewGroup) {
+                for (int j = 0; j < ((ViewGroup) child).getChildCount(); j++) {
+                    View grandChild = ((ViewGroup) child).getChildAt(j);
+                    if (grandChild instanceof TextView) {
+                        ((TextView) grandChild).setTextColor(getContext().getResources().getColor(android.R.color.white));
+                    }
+                }
+            }
+        }
     }
 }

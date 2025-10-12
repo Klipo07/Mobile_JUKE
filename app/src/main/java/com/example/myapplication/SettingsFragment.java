@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import androidx.fragment.app.Fragment;
@@ -20,6 +21,7 @@ public class SettingsFragment extends Fragment {
     private TextView textBonusIntervalValue;
     private SeekBar seekBarRoundDuration;
     private TextView textRoundDurationValue;
+    private Button buttonBack;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -34,6 +36,13 @@ public class SettingsFragment extends Fragment {
         textBonusIntervalValue = view.findViewById(R.id.textBonusIntervalValue);
         seekBarRoundDuration = view.findViewById(R.id.seekBarRoundDuration);
         textRoundDurationValue = view.findViewById(R.id.textRoundDurationValue);
+        buttonBack = view.findViewById(R.id.buttonBack);
+        
+        buttonBack.setOnClickListener(v -> {
+            if (getActivity() != null) {
+                getActivity().onBackPressed();
+            }
+        });
 
 
         setupSeekBar(seekBarSpeed, textSpeedValue, 1, 10, "x");

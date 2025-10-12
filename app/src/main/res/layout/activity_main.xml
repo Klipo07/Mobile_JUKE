@@ -1,22 +1,137 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="@drawable/main_background">
 
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tabLayout"
+    <!-- Контейнер для главного меню -->
+    <ScrollView
+        android:id="@+id/mainMenuContainer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
-        app:tabTextColor="@android:color/white"
-        app:tabSelectedTextColor="@android:color/white"
-        app:tabIndicatorColor="@android:color/white" />
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewPager"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <!-- Заголовок -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🐛 Жуки"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:textColor="@android:color/white"
+                android:layout_marginTop="40dp"
+                android:layout_marginBottom="20dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Выберите раздел"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="40dp" />
+
+            <!-- Кнопки навигации -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="20dp">
+
+                <Button
+                    android:id="@+id/buttonGame"
+                    android:layout_width="match_parent"
+                    android:layout_height="80dp"
+                    android:text="🎮 ИГРА"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/button_game_style"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="16dp" />
+
+                <Button
+                    android:id="@+id/buttonRegistration"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:text="📝 Регистрация"
+                    android:textSize="16sp"
+                    android:background="@drawable/button_secondary_style"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/buttonRules"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:text="📋 Правила"
+                    android:textSize="16sp"
+                    android:background="@drawable/button_secondary_style"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/buttonAuthors"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:text="👥 Авторы"
+                    android:textSize="16sp"
+                    android:background="@drawable/button_secondary_style"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/buttonRecords"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:text="🏆 Рекорды"
+                    android:textSize="16sp"
+                    android:background="@drawable/button_secondary_style"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/buttonSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:text="⚙️ Настройки"
+                    android:textSize="16sp"
+                    android:background="@drawable/button_secondary_style"
+                    android:textColor="@android:color/white"
+                    android:layout_marginBottom="20dp" />
+
+            </LinearLayout>
+
+            <!-- Информация о текущем пользователе (кликабельная) -->
+            <TextView
+                android:id="@+id/textCurrentUser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Пользователь не выбран"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:textColor="@android:color/white"
+                android:background="@drawable/user_info_background"
+                android:padding="12dp"
+                android:layout_marginTop="20dp"
+                android:clickable="true"
+                android:focusable="true" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Контейнер для фрагментов -->
+    <FrameLayout
+        android:id="@+id/mainContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
 </LinearLayout>

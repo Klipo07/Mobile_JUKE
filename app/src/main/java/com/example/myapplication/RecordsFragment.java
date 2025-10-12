@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -26,6 +27,14 @@ public class RecordsFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_records, container, false);
+        
+        Button buttonBack = v.findViewById(R.id.buttonBack);
+        buttonBack.setOnClickListener(view -> {
+            if (getActivity() != null) {
+                getActivity().onBackPressed();
+            }
+        });
+        
         recyclerView = v.findViewById(R.id.recyclerRecords);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new RecordsAdapter();

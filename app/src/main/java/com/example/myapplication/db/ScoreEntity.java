@@ -9,7 +9,7 @@ public class ScoreEntity {
     public long id;
     public long userId;
     public int score;
-    public int difficulty; // уровень сложности из регистрации
+    public int difficulty;
     public long createdAt;
 }
 

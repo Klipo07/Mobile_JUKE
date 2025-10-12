@@ -4,6 +4,9 @@ import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
 import android.widget.EditText;
 import android.app.AlertDialog;
 import android.widget.ArrayAdapter;
@@ -12,49 +15,177 @@ import com.example.myapplication.db.AppDao;
 import com.example.myapplication.db.UserEntity;
 import java.util.List;
 import androidx.fragment.app.Fragment;
-import androidx.viewpager2.widget.ViewPager2;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.tabs.TabLayoutMediator;
+import androidx.fragment.app.FragmentTransaction;
 
 public class MainActivity extends AppCompatActivity {
+
+    private TextView textCurrentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Инициализация элементов
+        textCurrentUser = findViewById(R.id.textCurrentUser);
+        
+        // Настройка кнопок навигации
+        setupNavigationButtons();
+        
+        // Обновляем информацию о пользователе
+        updateCurrentUserInfo();
+    }
 
-        // Настройка TabLayout и ViewPager2
-        TabLayout tabLayout = findViewById(R.id.tabLayout);
-        ViewPager2 viewPager = findViewById(R.id.viewPager);
+    private void setupNavigationButtons() {
+        findViewById(R.id.buttonGame).setOnClickListener(v -> showFragment(new GameFragment()));
+        findViewById(R.id.buttonRegistration).setOnClickListener(v -> showFragment(new RegistrationFragment()));
+        findViewById(R.id.buttonRules).setOnClickListener(v -> showFragment(new RulesFragment()));
+        findViewById(R.id.buttonAuthors).setOnClickListener(v -> showFragment(new AuthorsFragment()));
+        findViewById(R.id.buttonRecords).setOnClickListener(v -> showFragment(new RecordsFragment()));
+        findViewById(R.id.buttonSettings).setOnClickListener(v -> showFragment(new SettingsFragment()));
         
-        // Создаем адаптер для ViewPager2
-        ViewPagerAdapter adapter = new ViewPagerAdapter(this);
-        viewPager.setAdapter(adapter);
+        // Клик по информации о пользователе для смены пользователя
+        textCurrentUser.setOnClickListener(v -> showUserSelectionDialog());
+    }
+
+    private void showFragment(Fragment fragment) {
+        // Скрываем главное меню и показываем контейнер фрагментов
+        findViewById(R.id.mainMenuContainer).setVisibility(View.GONE);
+        findViewById(R.id.mainContainer).setVisibility(View.VISIBLE);
         
-        // Связываем TabLayout с ViewPager2
-        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            switch (position) {
-                case 0:
-                    tab.setText("Игра");
-                    break;
-                case 1:
-                    tab.setText("Регистрация");
-                    break;
-                case 2:
-                    tab.setText("Правила");
-                    break;
-                case 3:
-                    tab.setText("Рекорды");
-                    break;
-                case 4:
-                    tab.setText("Авторы");
-                    break;
-                case 5:
-                    tab.setText("Настройки");
-                    break;
-            }
-        }).attach();
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.mainContainer, fragment);
+        transaction.addToBackStack(null);
+        transaction.commit();
+    }
+
+    private void updateCurrentUserInfo() {
+        String userName = UserManager.getCurrentUserName(this);
+        if (userName.isEmpty()) {
+            textCurrentUser.setText("Пользователь не выбран");
+        } else {
+            textCurrentUser.setText("Текущий пользователь: " + userName);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateCurrentUserInfo();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            // Если есть фрагменты в стеке, возвращаемся к главному меню
+            getSupportFragmentManager().popBackStack();
+            findViewById(R.id.mainMenuContainer).setVisibility(View.VISIBLE);
+            findViewById(R.id.mainContainer).setVisibility(View.GONE);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private void showUserSelectionDialog() {
+        new Thread(() -> {
+            AppDatabase db = AppDatabase.get(this);
+            AppDao dao = db.dao();
+            List<UserEntity> users = dao.getUsers();
+            
+            runOnUiThread(() -> {
+                if (users.isEmpty()) {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Выбор пользователя")
+                            .setMessage("Нет зарегистрированных пользователей. Создайте нового пользователя в разделе 'Регистрация'.")
+                            .setPositiveButton("OK", null)
+                            .show();
+                    return;
+                }
+                
+                String[] userNames = new String[users.size()];
+                for (int i = 0; i < users.size(); i++) {
+                    userNames[i] = users.get(i).name;
+                }
+                
+                new AlertDialog.Builder(this)
+                        .setTitle("Выберите пользователя")
+                        .setItems(userNames, (dialog, which) -> {
+                            UserEntity selectedUser = users.get(which);
+                            UserManager.setCurrentUser(this, selectedUser.id, selectedUser.name);
+                            updateCurrentUserInfo();
+                        })
+                        .setPositiveButton("Удалить пользователя", (dialog, which) -> {
+                            showUserDeletionDialog(users);
+                        })
+                        .setNegativeButton("Отмена", null)
+                        .show();
+            });
+        }).start();
+    }
+
+    private void showUserDeletionDialog(List<UserEntity> users) {
+        if (users.isEmpty()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Удаление пользователей")
+                    .setMessage("Нет пользователей для удаления.")
+                    .setPositiveButton("OK", null)
+                    .show();
+            return;
+        }
+        
+        String[] userNames = new String[users.size()];
+        for (int i = 0; i < users.size(); i++) {
+            userNames[i] = users.get(i).name;
+        }
+        
+        new AlertDialog.Builder(this)
+                .setTitle("Удалить пользователя")
+                .setItems(userNames, (dialog, which) -> {
+                    UserEntity userToDelete = users.get(which);
+                    confirmUserDeletion(userToDelete);
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    private void confirmUserDeletion(UserEntity userToDelete) {
+        new AlertDialog.Builder(this)
+                .setTitle("Подтверждение удаления")
+                .setMessage("Вы уверены, что хотите удалить пользователя \"" + userToDelete.name + "\"?\n\nЭто действие также удалит все его рекорды!")
+                .setPositiveButton("Удалить", (dialog, which) -> {
+                    deleteUser(userToDelete);
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    private void deleteUser(UserEntity userToDelete) {
+        new Thread(() -> {
+            AppDatabase db = AppDatabase.get(this);
+            AppDao dao = db.dao();
+            
+            // Проверяем, является ли удаляемый пользователь текущим
+            long currentUserId = UserManager.getCurrentUserId(this);
+            boolean isCurrentUser = (currentUserId == userToDelete.id);
+            
+            // Удаляем пользователя и все его рекорды
+            dao.deleteScoresByUser(userToDelete.id);
+            dao.deleteUserById(userToDelete.id);
+            
+            runOnUiThread(() -> {
+                if (isCurrentUser) {
+                    // Если удаляем текущего пользователя, сбрасываем выбор
+                    UserManager.setCurrentUser(this, -1, "");
+                    updateCurrentUserInfo();
+                }
+                
+                new AlertDialog.Builder(this)
+                        .setTitle("Пользователь удален")
+                        .setMessage("Пользователь \"" + userToDelete.name + "\" и все его рекорды были удалены.")
+                        .setPositiveButton("OK", null)
+                        .show();
+            });
+        }).start();
     }
 
     @Override
@@ -137,9 +268,19 @@ public class MainActivity extends AppCompatActivity {
                                             AppDao ddao = AppDatabase.get(this).dao();
                                             ddao.deleteScoresByUser(chosen.id);
                                             ddao.deleteUserById(chosen.id);
-                                            if (UserManager.getCurrentUserId(this) == chosen.id) {
-                                                UserManager.setCurrentUser(this, -1, "");
-                                            }
+                                            
+                                            runOnUiThread(() -> {
+                                                if (UserManager.getCurrentUserId(this) == chosen.id) {
+                                                    UserManager.setCurrentUser(this, -1, "");
+                                                    updateCurrentUserInfo();
+                                                }
+                                                
+                                                new AlertDialog.Builder(this)
+                                                        .setTitle("Пользователь удален")
+                                                        .setMessage("Пользователь \"" + chosen.name + "\" и все его рекорды были удалены.")
+                                                        .setPositiveButton("OK", null)
+                                                        .show();
+                                            });
                                         }).start();
                                     })
                                     .setNegativeButton("Отмена", null)
