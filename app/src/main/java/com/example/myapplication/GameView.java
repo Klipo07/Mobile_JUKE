@@ -105,6 +105,13 @@ public class GameView extends View {
         running = false;
         handler.removeCallbacksAndMessages(null);
     }
+    
+    public void resume() {
+        if (!running) {
+            running = true;
+            handler.post(tick);
+        }
+    }
 
     public void resetGame() {
         score = 0;

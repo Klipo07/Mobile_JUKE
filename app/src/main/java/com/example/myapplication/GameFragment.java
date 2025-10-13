@@ -19,10 +19,15 @@ import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import com.example.myapplication.api.CbrService;
+import com.example.myapplication.viewmodel.GameViewModel;
 
 public class GameFragment extends Fragment implements SensorEventListener {
 
+    // ViewModel для сохранения состояния
+    private GameViewModel gameViewModel;
+    
     private GameView gameView;
     private TextView textScore;
     private TextView textTimer;
@@ -33,7 +38,6 @@ public class GameFragment extends Fragment implements SensorEventListener {
     private int roundDurationSec = 60;
     private int remainingSec = 60;
     private CountDownTimer countDownTimer;
-    private boolean isRunning = false;
 
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -45,6 +49,9 @@ public class GameFragment extends Fragment implements SensorEventListener {
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_game, container, false);
 
+        // Инициализация ViewModel
+        gameViewModel = new ViewModelProvider(this).get(GameViewModel.class);
+
         textScore = view.findViewById(R.id.textScore);
         textTimer = view.findViewById(R.id.textTimer);
         buttonStart = view.findViewById(R.id.buttonStart);
@@ -53,8 +60,12 @@ public class GameFragment extends Fragment implements SensorEventListener {
         gameView = view.findViewById(R.id.gameView);
 
         applySettingsToGameView();
+        setupViewModelObservers();
 
-        gameView.setOnScoreChangedListener(score -> textScore.setText("Очки: " + score));
+        gameView.setOnScoreChangedListener(score -> {
+            gameViewModel.setScore(score);
+            textScore.setText("Очки: " + score);
+        });
         gameView.setOnBonusActivatedListener(() -> playBugScream());
 
         buttonStart.setOnClickListener(v -> startGame());
@@ -72,31 +83,83 @@ public class GameFragment extends Fragment implements SensorEventListener {
         return view;
     }
 
+    private void setupViewModelObservers() {
+        // Наблюдаем за изменениями очков
+        gameViewModel.getScore().observe(getViewLifecycleOwner(), score -> {
+            textScore.setText("Очки: " + score);
+        });
+        
+        // Наблюдаем за изменениями времени
+        gameViewModel.getTimeLeft().observe(getViewLifecycleOwner(), timeLeft -> {
+            textTimer.setText(formatTime(timeLeft.intValue()));
+        });
+        
+        // Наблюдаем за состоянием игры
+        gameViewModel.getIsGameRunning().observe(getViewLifecycleOwner(), isRunning -> {
+            updateButtonVisibility();
+        });
+        
+        // Наблюдаем за паузой
+        gameViewModel.getIsGamePaused().observe(getViewLifecycleOwner(), isPaused -> {
+            updateButtonVisibility();
+        });
+        
+        // Наблюдаем за курсом золота
+        gameViewModel.getGoldRate().observe(getViewLifecycleOwner(), goldRate -> {
+            if (gameView != null) {
+                gameView.setGoldRate(goldRate);
+            }
+        });
+    }
+
+    private void updateButtonVisibility() {
+        boolean isRunning = gameViewModel.isGameCurrentlyRunning();
+        boolean isPaused = gameViewModel.isGameCurrentlyPaused();
+        
+        if (isRunning && !isPaused) {
+            buttonStart.setVisibility(View.GONE);
+            buttonPause.setVisibility(View.VISIBLE);
+        } else if (isRunning && isPaused) {
+            buttonStart.setVisibility(View.VISIBLE);
+            buttonPause.setVisibility(View.GONE);
+            buttonStart.setText("Продолжить");
+        } else {
+            buttonStart.setVisibility(View.VISIBLE);
+            buttonPause.setVisibility(View.GONE);
+            buttonStart.setText("Старт");
+        }
+    }
+
     private void applySettingsToGameView() {
         SharedPreferences prefs = requireContext().getSharedPreferences("game_prefs", Context.MODE_PRIVATE);
         int speedMultiplier = prefs.getInt("speedMultiplier", 1);
         int maxBugs = prefs.getInt("maxBugs", 10);
         int bonusIntervalSec = prefs.getInt("bonusIntervalSec", 15);
         roundDurationSec = prefs.getInt("roundDurationSec", 60); // берём из настроек, дефолт 60
-        if (!isRunning && (remainingSec == 0 || remainingSec > roundDurationSec)) {
+        if (!gameViewModel.isGameCurrentlyRunning() && (remainingSec == 0 || remainingSec > roundDurationSec)) {
             remainingSec = roundDurationSec;
         }
 
         gameView.configure(speedMultiplier, maxBugs, bonusIntervalSec);
-        if (!isRunning) {
+        if (!gameViewModel.isGameCurrentlyRunning()) {
             textTimer.setText(formatTime(remainingSec));
         }
     }
 
 
     private void startGame() {
-        if (!isRunning) {
+        if (!gameViewModel.isGameCurrentlyRunning()) {
             // проверяем выбранного пользователя
             long uid = ensureUserSelected();
             if (uid <= 0) return;
+            
             gameView.start();
-            isRunning = true;
-            toggleButtonsForRunning(true);
+            gameViewModel.startGame();
+            startTimerInternal();
+        } else if (gameViewModel.isGameCurrentlyPaused()) {
+            // Продолжаем игру после паузы
+            gameView.resume();
+            gameViewModel.resumeGame();
             startTimerInternal();
         }
     }
@@ -135,20 +198,24 @@ public class GameFragment extends Fragment implements SensorEventListener {
 
     private void startTimerInternal() {
         cancelTimerIfAny();
-        countDownTimer = new CountDownTimer(remainingSec * 1000L, 1000L) {
+        long timeLeft = gameViewModel.getCurrentTimeLeft();
+        if (timeLeft <= 0) {
+            timeLeft = remainingSec;
+        }
+        
+        countDownTimer = new CountDownTimer(timeLeft * 1000L, 1000L) {
             @Override
             public void onTick(long millisUntilFinished) {
                 remainingSec = (int) (millisUntilFinished / 1000);
-                textTimer.setText(formatTime(remainingSec));
+                gameViewModel.setTimeLeft(remainingSec);
             }
 
             @Override
             public void onFinish() {
                 remainingSec = 0;
-                textTimer.setText("00:00");
+                gameViewModel.setTimeLeft(0);
                 gameView.stop();
-                isRunning = false;
-                toggleButtonsForRunning(false);
+                gameViewModel.stopGame();
                 promptUserAndSaveScore();
             }
         };
@@ -156,13 +223,10 @@ public class GameFragment extends Fragment implements SensorEventListener {
     }
 
     private void pauseGame() {
-        if (isRunning) {
-            isRunning = false;
+        if (gameViewModel.isGameCurrentlyRunning()) {
+            gameViewModel.pauseGame();
             cancelTimerIfAny();
             gameView.stop();
-            toggleButtonsForRunning(false);
-            // кнопка Старт теперь будет как "Продолжить"
-            buttonStart.setText("Продолжить");
         }
     }
 
@@ -173,10 +237,6 @@ public class GameFragment extends Fragment implements SensorEventListener {
         }
     }
 
-    private void toggleButtonsForRunning(boolean running) {
-        buttonStart.setVisibility(running ? View.GONE : View.VISIBLE);
-        buttonPause.setVisibility(running ? View.VISIBLE : View.GONE);
-    }
 
 
     private String formatTime(int totalSec) {
@@ -186,7 +246,7 @@ public class GameFragment extends Fragment implements SensorEventListener {
     }
 
     private void saveScoreToDb(long userId) {
-        final int finalScore = gameView != null ? gameView.getScore() : 0;
+        final int finalScore = gameViewModel.getCurrentScore();
         if (userId <= 0) return;
         new Thread(() -> {
             com.example.myapplication.db.AppDao dao = com.example.myapplication.db.AppDatabase.get(requireContext()).dao();
@@ -319,18 +379,14 @@ public class GameFragment extends Fragment implements SensorEventListener {
         CbrService.getInstance().getGoldRate(new CbrService.GoldRateCallback() {
             @Override
             public void onSuccess(double goldRate) {
-                if (gameView != null) {
-                    gameView.setGoldRate(goldRate);
-                }
+                gameViewModel.setGoldRate(goldRate);
             }
             
             @Override
             public void onError(String error) {
                 android.util.Log.e("GameFragment", "Failed to load gold rate: " + error);
                 // Используем значение по умолчанию
-                if (gameView != null) {
-                    gameView.setGoldRate(100.0);
-                }
+                gameViewModel.setGoldRate(10491.49);
             }
         });
     }
