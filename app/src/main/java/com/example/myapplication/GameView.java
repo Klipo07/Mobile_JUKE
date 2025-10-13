@@ -16,9 +16,11 @@ import java.util.Random;
 public class GameView extends View {
 
     public interface OnScoreChangedListener { void onScoreChanged(int score); }
+    public interface OnBonusActivatedListener { void onBonusActivated(); }
 
     private final Paint bugPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint bgPaint = new Paint();
+    private final Paint bonusPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Random random = new Random();
     private final Handler handler = new Handler();
 
@@ -29,15 +31,29 @@ public class GameView extends View {
 
     private int speedMultiplier = 1;
     private int maxBugs = 10;
-    @SuppressWarnings("FieldCanBeLocal")
     private int bonusIntervalSec = 15;
 
     private int score = 0;
     private boolean running = false;
 
     private long lastSpawnMs = 0L;
+    private long lastBonusMs = 0L;
+    private long bonusStartTime = 0L;
+    private boolean bonusActive = false;
+    private float bonusX, bonusY;
+    private final float bonusRadius = 60f;
+    private final int bonusDurationMs = 5000; // 5 секунд активен бонус
+
+    // Золотой таракан
+    private long lastGoldenBugMs = 0L;
+    private boolean goldenBugActive = false;
+    private float goldenBugX, goldenBugY;
+    private final float goldenBugRadius = 50f;
+    private final int goldenBugIntervalSec = 20; // каждые 20 секунд
+    private double goldRate = 100.0; // курс золота по умолчанию
 
     private OnScoreChangedListener scoreListener;
+    private OnBonusActivatedListener bonusListener;
 
     private final Runnable tick = new Runnable() {
         @Override public void run() {
@@ -45,6 +61,9 @@ public class GameView extends View {
             long now = System.currentTimeMillis();
             updatePositions();
             spawnLogic(now);
+            bonusLogic(now);
+            goldenBugLogic(now);
+            checkBonusDuration(now);
             invalidate();
             handler.postDelayed(this, 16); // ~60 FPS
         }
@@ -57,6 +76,10 @@ public class GameView extends View {
     private void init() {
         bgPaint.setColor(Color.WHITE);
         bugPaint.setStyle(Paint.Style.FILL);
+        bonusPaint.setColor(Color.parseColor("#FFD700")); // Золотой цвет для бонуса
+        bonusPaint.setStyle(Paint.Style.FILL);
+        bonusPaint.setTextSize(24f);
+        bonusPaint.setTextAlign(Paint.Align.CENTER);
         setClickable(true);
     }
 
@@ -67,11 +90,14 @@ public class GameView extends View {
     }
 
     public void setOnScoreChangedListener(OnScoreChangedListener listener) { this.scoreListener = listener; }
+    public void setOnBonusActivatedListener(OnBonusActivatedListener listener) { this.bonusListener = listener; }
 
     public void start() {
         if (running) return;
         running = true;
         lastSpawnMs = System.currentTimeMillis();
+        lastBonusMs = System.currentTimeMillis(); // Инициализируем время последнего бонуса
+        lastGoldenBugMs = System.currentTimeMillis(); // Инициализируем время последнего золотого таракана
         handler.post(tick);
     }
 
@@ -84,6 +110,10 @@ public class GameView extends View {
         score = 0;
         if (scoreListener != null) scoreListener.onScoreChanged(score);
         bugs.clear();
+        bonusActive = false;
+        lastBonusMs = 0L;
+        goldenBugActive = false;
+        lastGoldenBugMs = 0L;
         invalidate();
     }
 
@@ -108,12 +138,72 @@ public class GameView extends View {
                 canvas.drawCircle(bug.x, bug.y, bug.radius, bugPaint);
             }
         }
+
+        // Рисуем бонус если он активен
+        if (bonusActive) {
+            // Рисуем внешнее кольцо для большей заметности
+            Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            ringPaint.setColor(Color.parseColor("#FFA500")); // Оранжевый
+            ringPaint.setStyle(Paint.Style.STROKE);
+            ringPaint.setStrokeWidth(8f);
+            canvas.drawCircle(bonusX, bonusY, bonusRadius + 10, ringPaint);
+            
+            // Основной круг бонуса
+            canvas.drawCircle(bonusX, bonusY, bonusRadius, bonusPaint);
+            
+            // Текст
+            Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            textPaint.setColor(Color.BLACK);
+            textPaint.setTextSize(36f);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            canvas.drawText("G", bonusX, bonusY + 12, textPaint);
+        }
+
+        // Рисуем золотого таракана если он активен
+        if (goldenBugActive) {
+            Paint goldenPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            goldenPaint.setColor(Color.parseColor("#FFD700"));
+            goldenPaint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(goldenBugX, goldenBugY, goldenBugRadius, goldenPaint);
+            
+            // Добавляем блеск
+            Paint sparklePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            sparklePaint.setColor(Color.parseColor("#FFFF00"));
+            sparklePaint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(goldenBugX - 15, goldenBugY - 15, 8, sparklePaint);
+            canvas.drawCircle(goldenBugX + 15, goldenBugY - 10, 6, sparklePaint);
+            canvas.drawCircle(goldenBugX - 10, goldenBugY + 15, 7, sparklePaint);
+        }
     }
 
     @Override public boolean onTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
             float tx = event.getX();
             float ty = event.getY();
+            
+            // Проверяем попадание по бонусу
+            if (bonusActive) {
+                float dx = tx - bonusX;
+                float dy = ty - bonusY;
+                if (dx*dx + dy*dy <= bonusRadius * bonusRadius) {
+                    activateBonus();
+                    return true;
+                }
+            }
+            
+            // Проверяем попадание по золотому таракану
+            if (goldenBugActive) {
+                float dx = tx - goldenBugX;
+                float dy = ty - goldenBugY;
+                if (dx*dx + dy*dy <= goldenBugRadius * goldenBugRadius) {
+                    int goldPoints = (int)(goldRate / 10); // очки пропорциональны курсу золота
+                    score += Math.max(1, goldPoints);
+                    if (scoreListener != null) scoreListener.onScoreChanged(score);
+                    goldenBugActive = false;
+                    return true;
+                }
+            }
+            
             boolean hit = false;
             Iterator<Bug> it = bugs.iterator();
             while (it.hasNext()) {
@@ -183,6 +273,81 @@ public class GameView extends View {
             if (b.y - b.radius < 0) { b.y = b.radius; b.vy = Math.abs(b.vy); }
             if (b.y + b.radius > heightPx) { b.y = heightPx - b.radius; b.vy = -Math.abs(b.vy); }
         }
+    }
+
+    private void bonusLogic(long now) {
+        // Создаем бонус каждые 15 секунд
+        if (!bonusActive && now - lastBonusMs > bonusIntervalSec * 1000L) {
+            spawnBonus();
+            lastBonusMs = now;
+        }
+        
+        // Временная отладка - можно удалить позже
+        if (!bonusActive && (now - lastBonusMs) % 5000 < 100) { // Логируем каждые 5 секунд
+            long timeUntilBonus = bonusIntervalSec * 1000L - (now - lastBonusMs);
+            android.util.Log.d("GameView", "Time until bonus: " + timeUntilBonus + "ms, bonusInterval: " + bonusIntervalSec);
+        }
+    }
+
+    private void spawnBonus() {
+        bonusX = bonusRadius + random.nextInt(Math.max(1, (int)(widthPx - 2*bonusRadius)));
+        bonusY = bonusRadius + random.nextInt(Math.max(1, (int)(heightPx - 2*bonusRadius)));
+        bonusActive = true;
+        // Временная отладка - можно удалить позже
+        android.util.Log.d("GameView", "Bonus spawned at: " + bonusX + ", " + bonusY + ", active: " + bonusActive);
+    }
+
+    private void activateBonus() {
+        bonusActive = false;
+        bonusStartTime = System.currentTimeMillis();
+        if (bonusListener != null) {
+            bonusListener.onBonusActivated();
+        }
+    }
+
+    private void checkBonusDuration(long now) {
+        // Проверяем, не истекло ли время действия бонуса
+        if (bonusStartTime > 0 && now - bonusStartTime > bonusDurationMs) {
+            bonusStartTime = 0;
+        }
+    }
+
+    public boolean isBonusActive() {
+        return bonusStartTime > 0 && System.currentTimeMillis() - bonusStartTime <= bonusDurationMs;
+    }
+
+    public void applyGravity(float gravityX, float gravityY) {
+        if (isBonusActive()) {
+            for (Bug b : bugs) {
+                b.vx += gravityX * 0.5f;
+                b.vy += gravityY * 0.5f;
+                // Ограничиваем скорость
+                float maxSpeed = 10f;
+                if (Math.abs(b.vx) > maxSpeed) b.vx = Math.signum(b.vx) * maxSpeed;
+                if (Math.abs(b.vy) > maxSpeed) b.vy = Math.signum(b.vy) * maxSpeed;
+            }
+        }
+    }
+
+    private void goldenBugLogic(long now) {
+        // Создаем золотого таракана каждые 20 секунд
+        if (!goldenBugActive && now - lastGoldenBugMs > goldenBugIntervalSec * 1000L) {
+            spawnGoldenBug();
+            lastGoldenBugMs = now;
+        }
+    }
+
+    private void spawnGoldenBug() {
+        goldenBugX = goldenBugRadius + random.nextInt(Math.max(1, (int)(widthPx - 2*goldenBugRadius)));
+        goldenBugY = goldenBugRadius + random.nextInt(Math.max(1, (int)(heightPx - 2*goldenBugRadius)));
+        goldenBugActive = true;
+        // Временная отладка - можно удалить позже
+        android.util.Log.d("GameView", "Golden bug spawned at: " + goldenBugX + ", " + goldenBugY);
+    }
+
+    public void setGoldRate(double rate) {
+        this.goldRate = rate;
+        android.util.Log.d("GameView", "Gold rate updated: " + rate);
     }
 
     private static class Bug {

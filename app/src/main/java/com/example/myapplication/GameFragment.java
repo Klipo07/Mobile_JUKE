@@ -2,6 +2,14 @@ package com.example.myapplication;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.SoundPool;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.view.LayoutInflater;
@@ -11,8 +19,9 @@ import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import com.example.myapplication.api.CbrService;
 
-public class GameFragment extends Fragment {
+public class GameFragment extends Fragment implements SensorEventListener {
 
     private GameView gameView;
     private TextView textScore;
@@ -25,6 +34,11 @@ public class GameFragment extends Fragment {
     private int remainingSec = 60;
     private CountDownTimer countDownTimer;
     private boolean isRunning = false;
+
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private SoundPool soundPool;
+    private int bugScreamSoundId;
 
     @Nullable
     @Override
@@ -41,6 +55,7 @@ public class GameFragment extends Fragment {
         applySettingsToGameView();
 
         gameView.setOnScoreChangedListener(score -> textScore.setText("Очки: " + score));
+        gameView.setOnBonusActivatedListener(() -> playBugScream());
 
         buttonStart.setOnClickListener(v -> startGame());
         buttonPause.setOnClickListener(v -> pauseGame());
@@ -49,6 +64,10 @@ public class GameFragment extends Fragment {
                 getActivity().onBackPressed();
             }
         });
+
+        initSensors();
+        initSoundPool();
+        loadGoldRate();
 
         return view;
     }
@@ -69,11 +88,6 @@ public class GameFragment extends Fragment {
         }
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        applySettingsToGameView();
-    }
 
     private void startGame() {
         if (!isRunning) {
@@ -164,12 +178,6 @@ public class GameFragment extends Fragment {
         buttonPause.setVisibility(running ? View.VISIBLE : View.GONE);
     }
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        // При уходе с вкладки — ставим игру на паузу, но не сбрасываем
-        pauseGame();
-    }
 
     private String formatTime(int totalSec) {
         int m = totalSec / 60;
@@ -234,6 +242,97 @@ public class GameFragment extends Fragment {
         // привяжем к уровню сложности из регистрации: используем seekBarDifficulty значение, сохраняя его в prefs
         // если не найдено — 0
         return requireContext().getSharedPreferences("game_prefs", Context.MODE_PRIVATE).getInt("difficulty", 0);
+    }
+
+    private void initSensors() {
+        sensorManager = (SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        }
+    }
+
+    private void initSoundPool() {
+        AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+        soundPool = new SoundPool.Builder()
+                .setMaxStreams(5)
+                .setAudioAttributes(audioAttributes)
+                .build();
+        
+        // Загружаем звук крика жуков из файла scream.wav
+        bugScreamSoundId = soundPool.load(requireContext(), R.raw.scream, 1);
+    }
+
+    private void playBugScream() {
+        if (soundPool != null && bugScreamSoundId != 0) {
+            // Воспроизводим звук крика жуков из файла scream.wav
+            soundPool.play(bugScreamSoundId, 1.0f, 1.0f, 1, 0, 1.0f);
+        }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER && gameView != null) {
+            // Применяем гравитацию к насекомым при активном бонусе
+            float gravityX = event.values[0]; // наклон по X
+            float gravityY = event.values[1]; // наклон по Y
+            gameView.applyGravity(gravityX * 0.1f, gravityY * 0.1f);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Не используется
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        applySettingsToGameView();
+        if (sensorManager != null && accelerometer != null) {
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // При уходе с вкладки — ставим игру на паузу, но не сбрасываем
+        pauseGame();
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (soundPool != null) {
+            soundPool.release();
+            soundPool = null;
+        }
+    }
+
+    private void loadGoldRate() {
+        CbrService.getInstance().getGoldRate(new CbrService.GoldRateCallback() {
+            @Override
+            public void onSuccess(double goldRate) {
+                if (gameView != null) {
+                    gameView.setGoldRate(goldRate);
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                android.util.Log.e("GameFragment", "Failed to load gold rate: " + error);
+                // Используем значение по умолчанию
+                if (gameView != null) {
+                    gameView.setGoldRate(100.0);
+                }
+            }
+        });
     }
 }
 
